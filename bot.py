@@ -115,7 +115,8 @@ def statuscheck(Field_id,API='GGAS9S9IXEW7Y0S2',ch='1193476'):
     if statuscode == 200:
         msg = get_data.json()
         mst=int(msg['field'+str(Field_id)])
-        return mst
+        tm=str(msg['created_at'])
+        return mst,tm
     elif statuscode in [405,409,429,500,502,503]:
         return -1
     else:
@@ -199,7 +200,7 @@ def moisture(update, context):
 
 def raincheck(update, context):
     """Show new choice of buttons"""
-    a=statuscheck(2)
+    a,b=statuscheck(2)
     if a==1:
         query = update.callback_query
         query.answer()
@@ -212,7 +213,7 @@ def raincheck(update, context):
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        moi="It's raining 🌧️ out there"+"\n"+'Last Updated on : '
+        moi="It's raining 🌧️ out there"+"\n"+'Last Updated on : '+b
         query.edit_message_text(text=moi,reply_markup=reply_markup)
         return FIRST
     else:
@@ -227,7 +228,7 @@ def raincheck(update, context):
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        moi="It's not raining 🌞"+"\n"+'Last Updated on : '
+        moi="It's not raining 🌞"+"\n"+'Last Updated on : '+b
         query.edit_message_text(text=moi,reply_markup=reply_markup)
         return FIRST
 
