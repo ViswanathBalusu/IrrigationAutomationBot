@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup as bs
 import os,time
 import logging
 import requests
-import threading
 import json
 import pymongo
 # Enable logging
@@ -21,11 +20,12 @@ logger = logging.getLogger(__name__)
 
 os.environ['TZ'] = 'Asia/Kolkata'
 time.tzset()
+TOKEN='Your telegram bot Token here'
 # Stages
 FIRST= range(1)
 # Callback data
-MOIST, EXIT, BACK, MOTOR, ON, OFF, RFRH, HUM, TEMP, RAIN, COMP = range(11)
-# function to interact with mongodb
+MOIST, EXIT, BACK, MOTOR, ON, OFF, RFRH, HUM, TEMP, RAIN, COMP, AI = range(12)
+
 def mongo(data,met,user='ML Prediction'):
     if met==0: # Initialize MongoDB
         print("MongoDB init")
@@ -57,20 +57,7 @@ def mongo(data,met,user='ML Prediction'):
         print("Method not specified or invalid method")
         return -1,-1
 
-def thingspeakpost(Field_id,val,API='C8QRPW8NKUI9XATP'):
-    URl='https://api.thingspeak.com/update?api_key='
-    KEY=API
-    ZONE='&timezone=Asia%2FKolkata'
-    HEADER='&field'+str(Field_id)+'={}'.format(val)
-    NEW_URL=URl+KEY+ZONE+HEADER
-    print(NEW_URL)
-    request = requests.get(NEW_URL)
-    soup = bs(request.text,"lxml")
-    allLines = soup.text
-    status=int(allLines)
-    return status
-
-def readthingspeak(Field_id,API='GGAS9S9IXEW7Y0S2',ch='1193476'):
+def readthingspeak(Field_id,API='VTXPIEW9CIOSWPQS',ch='1214586'):
     URL='https://api.thingspeak.com/'
     CHA='channels/'+ch+'/fields/'
     F_ID=str(Field_id)+'/last.json?api_key='
@@ -79,15 +66,13 @@ def readthingspeak(Field_id,API='GGAS9S9IXEW7Y0S2',ch='1193476'):
     NEW_URL=URL+CHA+F_ID+KEY+ZONE
     print(NEW_URL)
     get_data=requests.get(NEW_URL).json()
-    #print(get_data)
     msg=[]
     mst=str(get_data['field'+str(Field_id)])
     time=str(get_data['created_at'])
     msg=[mst,time]
-    #print(feild_1)
     return msg
 
-def readthingspeakall(n,API='GGAS9S9IXEW7Y0S2',ch='1193476'):
+def readthingspeakall(n,API='VTXPIEW9CIOSWPQS',ch='1214586'):
     URL='https://api.thingspeak.com/'
     CHA='channels/'+ch+'/feeds/last.json?api_key='
     KEY=API
@@ -95,14 +80,13 @@ def readthingspeakall(n,API='GGAS9S9IXEW7Y0S2',ch='1193476'):
     NEW_URL=URL+CHA+KEY+ZONE
     print(NEW_URL)
     get_data=requests.get(NEW_URL).json()
-    #print(get_data)
     time=str(get_data['created_at'])
-    msg=[]*5
+    msg=[]*4
     for i in range(n):
         msg.append(str(get_data['field'+str(i+1)]))
     return msg,time
 
-def statuscheck(Field_id,API='GGAS9S9IXEW7Y0S2',ch='1193476'):
+def statuscheck(Field_id,API='VTXPIEW9CIOSWPQS',ch='1214586'):
     URL='https://api.thingspeak.com/'
     CHA='channels/'+ch+'/fields/'
     F_ID=str(Field_id)+'/last.json?api_key='
@@ -123,14 +107,8 @@ def statuscheck(Field_id,API='GGAS9S9IXEW7Y0S2',ch='1193476'):
         return 99
 
 def start(update, context):
-    """Send message on `/start`. https://api.thingspeak.com/channels/1193476/fields/1/last.txt?api_key=GGAS9S9IXEW7Y0S2"""
-    # Get user that sent /start and log his name
     user = update.message.from_user
     logger.info("User %s started the conversation.", user.username)
-    # Build InlineKeyboard where each button has a displayed text
-    # and a string as callback_data
-    # The keyboard is a list of button rows, where each row is in turn
-    # a list (hence `[[...]]`).
     keyboard = [
         [
             InlineKeyboardButton("💧 Moisture", callback_data=str(MOIST)),
@@ -141,22 +119,16 @@ def start(update, context):
             InlineKeyboardButton("🌧️ Rainfall Status", callback_data=str(RAIN)),
         ],
         [InlineKeyboardButton("🚰 Pump Status", callback_data=str(MOTOR))],
-        [InlineKeyboardButton("✔️ Complete info", callback_data=str(COMP))],
+        [InlineKeyboardButton("✅ Complete info", callback_data=str(COMP))],
         [InlineKeyboardButton("🛑 Quit", callback_data=str(EXIT))],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    # Send message with text and appended InlineKeyboard
     update.message.reply_text(text='Hello @{}\nYou can Check Your Field Status here'.format(user.username))
-    update.message.reply_text(text='🖥 Main Menu 🖥', reply_markup=reply_markup)
-    # Tell ConversationHandler that we're in state `FIRST` now
+    update.message.reply_text(text='   🖥 Main Menu 🖥', reply_markup=reply_markup)
     return FIRST
 
 def start_over(update, context):
-    """Prompt same text & keyboard as `start` does but not as new message"""
-    # Get CallbackQuery from Update
     query = update.callback_query
-    # CallbackQueries need to be answered, even if no notification to the user is needed
-    # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
     query.answer()
     keyboard = [
         [
@@ -168,14 +140,11 @@ def start_over(update, context):
             InlineKeyboardButton("🌧️ Rainfall Status", callback_data=str(RAIN)),
         ],
         [InlineKeyboardButton("🚰 Pump Status", callback_data=str(MOTOR))],
-        [InlineKeyboardButton("✔️ Complete info", callback_data=str(COMP))],
+        [InlineKeyboardButton("✅ Complete info", callback_data=str(COMP))],
         [InlineKeyboardButton("🛑 Quit", callback_data=str(EXIT))],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    # Instead of sending a new message, edit the message that
-    # originated the CallbackQuery. This gives the feeling of an
-    # interactive menu.
-    query.edit_message_text(text="🖥 Main Menu 🖥", reply_markup=reply_markup)
+    query.edit_message_text(text="   🖥 Main Menu 🖥", reply_markup=reply_markup)
     return FIRST
 
 def moisture(update, context):
@@ -187,11 +156,11 @@ def moisture(update, context):
             InlineKeyboardButton("🚰 Pump Settings", callback_data=str(MOTOR))
         ],
         [
-            InlineKeyboardButton("🔙 Back", callback_data=str(BACK))
+            InlineKeyboardButton("⬅️ Back", callback_data=str(BACK))
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    a=readthingspeak(1)
+    a=readthingspeak(3)
     moi='Moisture 💧 in the Soil : {}%'.format(a[0])+'\nLast Updated on : '+a[1]
     query.edit_message_text(
         text=moi,reply_markup=reply_markup
@@ -200,7 +169,7 @@ def moisture(update, context):
 
 def raincheck(update, context):
     """Show new choice of buttons"""
-    a,b=statuscheck(2)
+    a,b=statuscheck(4)
     if a==1:
         query = update.callback_query
         query.answer()
@@ -209,7 +178,7 @@ def raincheck(update, context):
                 InlineKeyboardButton("🚰 Pump Status", callback_data=str(MOTOR))
             ],
             [
-                InlineKeyboardButton("🔙 Back", callback_data=str(BACK))
+                InlineKeyboardButton("⬅️ Back", callback_data=str(BACK))
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -224,7 +193,7 @@ def raincheck(update, context):
                 InlineKeyboardButton("🚰 Pump Status", callback_data=str(MOTOR))
             ],
             [
-                InlineKeyboardButton("🔙 Back", callback_data=str(BACK))
+                InlineKeyboardButton("⬅️ Back", callback_data=str(BACK))
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -241,7 +210,7 @@ def temparature(update, context):
             InlineKeyboardButton("🚰 Pump Status", callback_data=str(MOTOR))
         ],
         [
-            InlineKeyboardButton("🔙 Back", callback_data=str(BACK))
+            InlineKeyboardButton("⬅️ Back", callback_data=str(BACK))
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -260,11 +229,11 @@ def humidity(update, context):
             InlineKeyboardButton("🚰 Pump Status", callback_data=str(MOTOR))
         ],
         [
-            InlineKeyboardButton("🔙 Back", callback_data=str(BACK))
+            InlineKeyboardButton("⬅️ Back", callback_data=str(BACK))
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    a=readthingspeak(1)
+    a=readthingspeak(2)
     moi='Humidity ⛅ in the Field : {}%'.format(a[0])+'\nLast Updated on : '+a[1]
     query.edit_message_text(
         text=moi,reply_markup=reply_markup
@@ -279,16 +248,16 @@ def getall(update, context):
             InlineKeyboardButton("🚰 Pump Status", callback_data=str(MOTOR))
         ],
         [
-            InlineKeyboardButton("🔙 Back", callback_data=str(BACK))
+            InlineKeyboardButton("⬅️ Back", callback_data=str(BACK))
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    a,time=readthingspeakall(5)
-    if a[2] == 1:
+    a,time=readthingspeakall(4)
+    if a[3] == 1:
         rain='True'
     else:
         rain='False'
-    moi='⛅ Humidity : {}%'.format(a[3])+"\n"+'🌡️ Temparature : {}°C'.format(a[4])+"\n"+'💧 Moisture : {}%'.format(a[0])+"\n"+'🌧️ Is Raining : '+rain+"\n"+'⌚ Last Updated  : '+time
+    moi='⛅ Humidity : {}%'.format(a[1])+"\n"+'🌡️ Temparature : {}°C'.format(a[0])+"\n"+'💧 Moisture : {}%'.format(a[2])+"\n"+'🌧️ Is Raining : '+rain+"\n"+'⌚ Last Updated  : '+time
     query.edit_message_text(
         text=moi,reply_markup=reply_markup
     )
@@ -300,11 +269,14 @@ def motoron(update, context):
     query.answer()
     keyboard = [
     [
-            InlineKeyboardButton("🔙 Back", callback_data=str(MOTOR))
-        ]
+    InlineKeyboardButton("🛑 Switch OFF", callback_data=str(OFF)),
+    ],
+    [
+            InlineKeyboardButton("⬅️ Back", callback_data=str(MOTOR))
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    query.edit_message_text(text='✔️ Running Status Changed\nSwitched ON by @'+user+' at : '+stat,reply_markup=reply_markup)
+    query.edit_message_text(text='✅ Running Status Changed\nSwitched ON by @'+user+' at : '+stat,reply_markup=reply_markup)
     return FIRST
 def motoroff(update, context):
     user = update.effective_message.chat.username
@@ -313,16 +285,33 @@ def motoroff(update, context):
     query.answer()
     keyboard = [
     [
-            InlineKeyboardButton("🔙 Back", callback_data=str(MOTOR))
+    InlineKeyboardButton("✅ Switch ON", callback_data=str(ON)),
+    ],
+    [
+            InlineKeyboardButton("⬅️ Back", callback_data=str(MOTOR))
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    query.edit_message_text(text='✔️ Running Status Changed\nSwitched OFF by @'+user+' at : '+stat,reply_markup=reply_markup)
+    query.edit_message_text(text='✅ Running Status Changed\nSwitched OFF by @'+user+' at : '+stat,reply_markup=reply_markup)
     return FIRST
 
 def refreshstat(update, context):
     a,b,c,d=mongo(0,2)
     motor(update, context, c)
+    return FIRST
+
+def chitti(update, context):
+    user = update.effective_message.chat.username
+    stat = mongo(0,1)
+    query = update.callback_query
+    query.answer()
+    keyboard = [
+    [
+            InlineKeyboardButton("⬅️ Back", callback_data=str(MOTOR))
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    query.edit_message_text(text='🤖 Chitti mode is Activated by @'+user+'\n Now you can sit back and relax 🛏️ and let 🤖Chitti manage your farm 🚜',reply_markup=reply_markup)
     return FIRST
 
 def motor(update, context, rfrh=''):
@@ -337,7 +326,10 @@ def motor(update, context, rfrh=''):
             InlineKeyboardButton("🔄 Refresh Status", callback_data=str(RFRH)),
             ],
             [
-            InlineKeyboardButton("🔙 Back", callback_data=str(BACK)),
+            InlineKeyboardButton("🤖 Turn on Chitti", callback_data=str(AI)),
+            ],
+            [
+            InlineKeyboardButton("⬅️ Back", callback_data=str(BACK)),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -362,7 +354,10 @@ def motor(update, context, rfrh=''):
             InlineKeyboardButton("🔄 Refresh Status", callback_data=str(RFRH)),
             ],
             [
-            InlineKeyboardButton("🔙 Back", callback_data=str(BACK)),
+            InlineKeyboardButton("🤖 Turn on Chitti", callback_data=str(AI)),
+            ],
+            [
+            InlineKeyboardButton("⬅️ Back", callback_data=str(BACK)),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -388,7 +383,10 @@ def motor(update, context, rfrh=''):
             InlineKeyboardButton("🔄 Refresh Status", callback_data=str(RFRH)),
             ],
             [
-            InlineKeyboardButton("🔙 Back", callback_data=str(BACK)),
+            InlineKeyboardButton("🤖 Turn on Chitti", callback_data=str(AI)),
+            ],
+            [
+            InlineKeyboardButton("⬅️ Back", callback_data=str(BACK)),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -406,18 +404,8 @@ def end(update, context):
 
 
 def main():
-    # Create the Updater and pass it your bot's token.
-    updater = Updater("1157845506:AAE_9ok6uazi1iVIPxpQnrcY6YA2ai7NCd0", use_context=True)
-
-    # Get the dispatcher to register handlers
+    updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
-
-    # Setup conversation handler with the states FIRST and SECOND
-    # Use the pattern parameter to pass CallbackQueries with specific
-    # data pattern to the corresponding handlers.
-    # ^ means "start of line/string"
-    # $ means "end of line/string"
-    # So ^ABC$ will only allow 'ABC'
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -433,21 +421,13 @@ def main():
                 CallbackQueryHandler(humidity, pattern='^' + str(HUM) + '$'),
                 CallbackQueryHandler(getall, pattern='^' + str(COMP) + '$'),
                 CallbackQueryHandler(raincheck, pattern='^' + str(RAIN) + '$'),
+                CallbackQueryHandler(chitti, pattern='^' + str(AI) + '$'),
             ]
         },
         fallbacks=[CommandHandler('start', start)],
     )
-
-    # Add ConversationHandler to dispatcher that will be used for handling
-    # updates
     dp.add_handler(conv_handler)
-
-    # Start the Bot
     updater.start_polling()
-
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
 
