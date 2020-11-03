@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
-from bs4 import BeautifulSoup as bs
 import os,time
 import logging
 import requests
@@ -57,7 +56,7 @@ def mongo(data,met,user='ML Prediction'):
         print("Method not specified or invalid method")
         return -1,-1
 
-def readthingspeak(Field_id,API='VTXPIEW9CIOSWPQS',ch='1214586'):
+def readthingspeak(Field_id,API='',ch=''):
     URL='https://api.thingspeak.com/'
     CHA='channels/'+ch+'/fields/'
     F_ID=str(Field_id)+'/last.json?api_key='
@@ -72,7 +71,7 @@ def readthingspeak(Field_id,API='VTXPIEW9CIOSWPQS',ch='1214586'):
     msg=[mst,time]
     return msg
 
-def readthingspeakall(n,API='VTXPIEW9CIOSWPQS',ch='1214586'):
+def readthingspeakall(n,API='',ch=''):
     URL='https://api.thingspeak.com/'
     CHA='channels/'+ch+'/feeds/last.json?api_key='
     KEY=API
@@ -86,7 +85,7 @@ def readthingspeakall(n,API='VTXPIEW9CIOSWPQS',ch='1214586'):
         msg.append(str(get_data['field'+str(i+1)]))
     return msg,time
 
-def statuscheck(Field_id,API='VTXPIEW9CIOSWPQS',ch='1214586'):
+def statuscheck(Field_id,API='',ch=''):
     URL='https://api.thingspeak.com/'
     CHA='channels/'+ch+'/fields/'
     F_ID=str(Field_id)+'/last.json?api_key='
