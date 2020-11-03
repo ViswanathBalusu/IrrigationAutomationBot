@@ -26,7 +26,7 @@ def mongo(data,met,user='ML Prediction'):
     if met==0: # Initialize MongoDB
         print("MongoDB init")
         timedat = time.strftime('%X %x %Z')
-        temp = {"_id":"0","status": data,"time":timedat,"lastread":"0","by":user}
+        temp = {"_id":"0","status": data,"time":timedat,"lastread":"0","MLread":"0","by":user}
         status.insert_one(temp)
         return timedat
     elif met==1: #Updating previous data
@@ -38,11 +38,11 @@ def mongo(data,met,user='ML Prediction'):
         return timedat
     elif met==2: # Reading the available data
         print("MongoDB Reading")
-        for x in status.find({},{ "_id": 0, "status": 1,"time":0,"lastread":0,"by":1}):
+        for x in status.find({},{ "_id": 0, "status": 1, "by":1}):
             temp=x
         timedat = time.strftime('%X %x %Z')
         id = {"_id":"0"}
-        up = {"$set":{"lastread":timedat}}
+        up = {"$set":{"MLread":timedat}}
         status.update_one(id,up)
         msg=int(temp['status'])
         by=str(temp['by'])
@@ -91,21 +91,21 @@ def predict():
 
 def main():
     while True:
-        a,by=preditct()
+        a,by=predict()
         if a==1:
-            GPIO.output(SWITCH, 1)
+            GPIO.output(SWITCH, 0)
             print('Switched on by ML Prediction')
         elif a==0:
-            GPIO.output(SWITCH, 0)
+            GPIO.output(SWITCH, 1)
             print('Switched off by ML Prediction')
         elif a==-2:
-            GPIO.output(SWITCH, 0)
+            GPIO.output(SWITCH, 1)
             print('Switched off by ML Prediction because its Raining dude')
         elif a==2:
-            GPIO.output(SWITCH, 1)
+            GPIO.output(SWITCH, 0)
             print('Switched on by '+by)
         elif a==3:
-            GPIO.output(SWITCH, 0)
+            GPIO.output(SWITCH, 1)
             print('Switched off by '+by)
         else:
             print("Cannot Retrieve Current Status")
